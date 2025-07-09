@@ -1,0 +1,30 @@
+# docker-compose.yml
+
+services:
+  # 데이터베이스 초기화 서비스
+  init-db:
+    build: .
+    container_name: wine-db-init
+    env_file:
+      - .env
+    environment:
+      - DATABASE_PATH=/app/data/wine_database.db
+      - PYTHONPATH=/app
+    command: python src/init_db.py
+    volumes:
+      - ./data:/app/data
+
+  wine-api:
+    build: .
+    container_name: wine-recommendation-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_PATH=/app/data/wine_database.db
+      - PYTHONPATH=/app
+    command: python src/app.py
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
