@@ -181,26 +181,34 @@ def process_wine_data(df, dataset_type):
     finally:
         db.close()
 
-def load_sample_data():
-    """샘플 데이터 로드 (기존 함수 - 하위 호환성 유지)"""
-    datasets = get_available_datasets()
+def load_wine_data():
+    """와인 데이터 로드 (환경변수 DATASET_CHOICE 활용)"""
+    # 환경변수에서 데이터셋 선택 확인
+    dataset_choice = os.getenv("DATASET_CHOICE")
     
-    if not datasets:
-        print("사용 가능한 데이터셋이 없습니다. 테스트용 샘플 데이터를 생성합니다.")
-        create_test_data()
-        return
-    
-    # 기본적으로 첫 번째 데이터셋 사용
-    dataset_id, dataset_name, file_path = datasets[0]
-    print(f"기본 데이터셋을 사용합니다: {dataset_name}")
-    
-    df = load_data_from_file(file_path)
-    
-    if df is not None:
-        process_wine_data(df, dataset_id)
+    if dataset_choice:
+        print(f"환경변수 DATASET_CHOICE에서 선택된 데이터셋: {dataset_choice}")
+        load_selected_data(dataset_choice)
     else:
-        print("데이터 로드에 실패했습니다. 테스트용 샘플 데이터를 생성합니다.")
-        create_test_data()
+        print("환경변수 DATASET_CHOICE가 설정되지 않았습니다. 기본 데이터셋을 사용합니다.")
+        datasets = get_available_datasets()
+        
+        if not datasets:
+            print("사용 가능한 데이터셋이 없습니다. 테스트용 샘플 데이터를 생성합니다.")
+            create_test_data()
+            return
+        
+        # 기본적으로 첫 번째 데이터셋 사용
+        dataset_id, dataset_name, file_path = datasets[0]
+        print(f"기본 데이터셋을 사용합니다: {dataset_name}")
+        
+        df = load_data_from_file(file_path)
+        
+        if df is not None:
+            process_wine_data(df, dataset_id)
+        else:
+            print("데이터 로드에 실패했습니다. 테스트용 샘플 데이터를 생성합니다.")
+            create_test_data()
 
 def load_selected_data(dataset_choice=None):
     """선택된 데이터셋 로드"""

@@ -8,11 +8,12 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_PATH=/app/data/wine_database.db
+      - DATABASE_URL=sqlite:///./wine_recommendation.db
       - PYTHONPATH=/app
     command: python src/init_db.py
     volumes:
       - ./data:/app/data
+      - wine_db_data:/app
 
   wine-api:
     build: .
@@ -22,9 +23,15 @@ services:
     env_file:
       - .env
     environment:
-      - DATABASE_PATH=/app/data/wine_database.db
+      - DATABASE_URL=sqlite:///./wine_recommendation.db
       - PYTHONPATH=/app
     command: python src/app.py
     restart: unless-stopped
     volumes:
       - ./data:/app/data
+      - wine_db_data:/app
+    depends_on:
+      - init-db
+
+volumes:
+  wine_db_data:
