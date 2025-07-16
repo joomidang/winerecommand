@@ -33,14 +33,6 @@ def get_all_wines(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
     wines = db.query(Wine).offset(skip).limit(limit).all()
     return wines
 
-@router.get("/{wine_id}", response_model=WineResponse)
-def get_wine(wine_id: int, db: Session = Depends(get_db)):
-    """특정 와인 조회"""
-    wine = db.query(Wine).filter(Wine.id == wine_id).first()
-    if wine is None:
-        raise HTTPException(status_code=404, detail="와인을 찾을 수 없습니다")
-    return wine
-
 @router.get("/search/", response_model=List[WineResponse])
 def search_wines(
     country: Optional[str] = None,
@@ -84,8 +76,6 @@ def get_model_status():
     """추천 모델 상태 확인"""
     return recommendation_model.get_model_info()
 
- 
-
 @router.get("/{wine_id}/recommendations/")
 def get_recommendations(wine_id: int, top_k: int = 10, db: Session = Depends(get_db)):
     """특정 와인에 대한 추천 와인 목록"""
@@ -110,3 +100,11 @@ def get_recommendations(wine_id: int, top_k: int = 10, db: Session = Depends(get
         "recommendations": recommended_wines,
         "total_recommendations": len(recommended_wines)
     }
+
+@router.get("/{wine_id}", response_model=WineResponse)
+def get_wine(wine_id: int, db: Session = Depends(get_db)):
+    """특정 와인 조회"""
+    wine = db.query(Wine).filter(Wine.id == wine_id).first()
+    if wine is None:
+        raise HTTPException(status_code=404, detail="와인을 찾을 수 없습니다")
+    return wine
