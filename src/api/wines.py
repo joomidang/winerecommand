@@ -4,6 +4,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from database.setup import get_db, Wine
+from models.recommendation_model import recommendation_model
 
 router = APIRouter(prefix="/wines", tags=["wines"])
 
@@ -76,4 +77,36 @@ def search_wines(
 def get_wine_stats(db: Session = Depends(get_db)):
     """와인 통계 정보"""
     from database.setup import get_wine_statistics
-    return get_wine_statistics() 
+    return get_wine_statistics()
+
+@router.get("/model/status/")
+def get_model_status():
+    """추천 모델 상태 확인"""
+    return recommendation_model.get_model_info()
+
+ 
+
+@router.get("/{wine_id}/recommendations/")
+def get_recommendations(wine_id: int, top_k: int = 10, db: Session = Depends(get_db)):
+    """특정 와인에 대한 추천 와인 목록"""
+    wine = db.query(Wine).filter(Wine.id == wine_id).first()
+    if wine is None:
+        raise HTTPException(status_code=404, detail="와인을 찾을 수 없습니다")
+    
+    # 추천 모델이 로드되어 있는지 확인
+    if not recommendation_model.is_loaded:
+        # 모델이 로드되지 않은 경우 자동으로 로드 시도
+        if not recommendation_model.load_model():
+            raise HTTPException(status_code=503, detail="추천 모델을 로드할 수 없습니다")
+    
+    # 추천 와인 ID 목록 가져오기
+    recommended_wine_ids = recommendation_model.get_recommendations(wine_id, top_k)
+    
+    # 추천된 와인들의 상세 정보 조회
+    recommended_wines = db.query(Wine).filter(Wine.id.in_(recommended_wine_ids)).all()
+    
+    return {
+        "wine_id": wine_id,
+        "recommendations": recommended_wines,
+        "total_recommendations": len(recommended_wines)
+    }
