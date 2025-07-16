@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api.wines import router as wines_router
 from database.setup import get_db
+from models.recommendation_model import recommendation_model
 
 app = FastAPI(title="와인 추천 API", description="와인 추천 시스템 API")
 
@@ -51,9 +52,19 @@ def wait_for_database(max_retries=30, retry_interval=2):
 
 @app.on_event("startup")
 async def startup_event():
-    """서버 시작 시 데이터베이스 연결 확인"""
+    """서버 시작 시 데이터베이스 연결 확인 및 모델 로드"""
     if not wait_for_database():
         print("경고: 데이터베이스가 준비되지 않았습니다. API는 제한적으로 작동할 수 있습니다.")
+    
+    # 추천 모델 로드 시도
+    print("추천 모델을 로드합니다...")
+    if recommendation_model.is_model_available():
+        if recommendation_model.load_model():
+            print("추천 모델 로드 완료!")
+        else:
+            print("경고: 추천 모델 로드에 실패했습니다.")
+    else:
+        print("경고: 추천 모델 파일을 찾을 수 없습니다. models/ 디렉토리에 모델 파일을 추가해주세요.")
 
 @app.get("/")
 def read_root():

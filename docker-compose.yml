@@ -13,6 +13,7 @@ services:
     command: python src/init_db.py
     volumes:
       - ./data:/app/data
+      - ./models:/app/models
       - wine_db_data:/app
 
   wine-api:
@@ -29,6 +30,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./data:/app/data
+      - ./models:/app/models
       - wine_db_data:/app
     depends_on:
       - init-db

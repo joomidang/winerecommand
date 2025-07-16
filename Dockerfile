@@ -16,8 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 애플리케이션 파일 복사
 COPY . .
 
-# 데이터베이스 디렉토리 생성
+# 데이터베이스 및 모델 디렉토리 생성
 RUN mkdir -p /app/data
+RUN mkdir -p /app/models
 
 # 시작 스크립트 실행 권한 부여
 RUN chmod +x start.sh
