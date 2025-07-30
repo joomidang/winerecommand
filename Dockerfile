@@ -20,6 +20,11 @@ COPY . .
 RUN mkdir -p /app/data
 RUN mkdir -p /app/models
 
+# 모델 파일을 올바른 위치로 복사
+RUN if [ -f "src/models/converted_data.pkl" ]; then \
+        cp src/models/converted_data.pkl /app/models/; \
+    fi
+
 # 시작 스크립트 실행 권한 부여
 RUN chmod +x start.sh
 

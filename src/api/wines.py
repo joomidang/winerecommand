@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 
 from database.setup import get_db, Wine
@@ -26,6 +26,17 @@ class WineResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class RecommendationResponse(BaseModel):
+    wine_id: int
+    wine_title: str
+    similarity_score: float
+
+class WineRecommendationResponse(BaseModel):
+    target_wine: WineResponse
+    recommendations: List[RecommendationResponse]
+    total_recommendations: int
+    model_info: Dict[str, Any]
 
 @router.get("/", response_model=List[WineResponse])
 def get_all_wines(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
@@ -76,18 +87,61 @@ def get_model_status():
     """추천 모델 상태 확인"""
     return recommendation_model.get_model_info()
 
-@router.get("/{wine_id}/recommendations/")
-def get_recommendations(wine_id: int, top_k: int = 10, db: Session = Depends(get_db)):
-    """특정 와인에 대한 추천 와인 목록"""
+@router.get("/{wine_id}/recommendations/", response_model=WineRecommendationResponse)
+def get_recommendations(wine_id: int, top_k: int = 10, include_scores: bool = True, db: Session = Depends(get_db)):
+    """특정 와인에 대한 추천 와인 목록 (유사도 점수 포함)"""
+    # 대상 와인 조회
+    target_wine = db.query(Wine).filter(Wine.id == wine_id).first()
+    if target_wine is None:
+        raise HTTPException(status_code=404, detail="와인을 찾을 수 없습니다")
+    
+    # 추천 모델이 로드되어 있는지 확인
+    if not recommendation_model.is_loaded:
+        raise HTTPException(status_code=503, detail="추천 모델이 로드되지 않았습니다. 서버를 재시작해주세요.")
+    
+    # 추천 와인 ID와 점수 목록 가져오기
+    if include_scores:
+        recommendations_with_scores = recommendation_model.get_recommendations_with_scores(wine_id, top_k)
+        recommended_wine_ids = [wine_id for wine_id, _ in recommendations_with_scores]
+        similarity_scores = [score for _, score in recommendations_with_scores]
+    else:
+        recommended_wine_ids = recommendation_model.get_recommendations(wine_id, top_k)
+        similarity_scores = [1.0] * len(recommended_wine_ids)  # 기본값
+    
+    # 추천된 와인들의 상세 정보 조회
+    recommended_wines = db.query(Wine).filter(Wine.id.in_(recommended_wine_ids)).all()
+    
+    # 와인 ID를 키로 하는 딕셔너리 생성
+    wine_dict = {wine.id: wine for wine in recommended_wines}
+    score_dict = {wine_id: score for wine_id, score in zip(recommended_wine_ids, similarity_scores)}
+    
+    # 응답 데이터 구성
+    recommendations = []
+    for wine_id in recommended_wine_ids:
+        if wine_id in wine_dict:
+            recommendations.append(RecommendationResponse(
+                wine_id=wine_id,
+                wine_title=wine_dict[wine_id].title,
+                similarity_score=score_dict[wine_id]
+            ))
+    
+    return WineRecommendationResponse(
+        target_wine=target_wine,
+        recommendations=recommendations,
+        total_recommendations=len(recommendations),
+        model_info=recommendation_model.get_model_info()
+    )
+
+@router.get("/{wine_id}/recommendations/simple/")
+def get_recommendations_simple(wine_id: int, top_k: int = 10, db: Session = Depends(get_db)):
+    """특정 와인에 대한 추천 와인 목록 (간단한 버전)"""
     wine = db.query(Wine).filter(Wine.id == wine_id).first()
     if wine is None:
         raise HTTPException(status_code=404, detail="와인을 찾을 수 없습니다")
     
     # 추천 모델이 로드되어 있는지 확인
     if not recommendation_model.is_loaded:
-        # 모델이 로드되지 않은 경우 자동으로 로드 시도
-        if not recommendation_model.load_model():
-            raise HTTPException(status_code=503, detail="추천 모델을 로드할 수 없습니다")
+        raise HTTPException(status_code=503, detail="추천 모델이 로드되지 않았습니다. 서버를 재시작해주세요.")
     
     # 추천 와인 ID 목록 가져오기
     recommended_wine_ids = recommendation_model.get_recommendations(wine_id, top_k)
@@ -97,6 +151,7 @@ def get_recommendations(wine_id: int, top_k: int = 10, db: Session = Depends(get
     
     return {
         "wine_id": wine_id,
+        "wine_title": wine.title,
         "recommendations": recommended_wines,
         "total_recommendations": len(recommended_wines)
     }

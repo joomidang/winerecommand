@@ -52,19 +52,21 @@ def wait_for_database(max_retries=30, retry_interval=2):
 
 @app.on_event("startup")
 async def startup_event():
-    """서버 시작 시 데이터베이스 연결 확인 및 모델 로드"""
+    """서버 시작 시 데이터베이스 연결 확인 및 추천 모델 로드"""
+    print("서버 시작 중...")
+    
+    # 데이터베이스 준비 확인
     if not wait_for_database():
         print("경고: 데이터베이스가 준비되지 않았습니다. API는 제한적으로 작동할 수 있습니다.")
     
-    # 추천 모델 로드 시도
-    print("추천 모델을 로드합니다...")
-    if recommendation_model.is_model_available():
-        if recommendation_model.load_model():
-            print("추천 모델 로드 완료!")
-        else:
-            print("경고: 추천 모델 로드에 실패했습니다.")
+    # 추천 모델 미리 로드
+    print("추천 모델을 로드하는 중...")
+    if recommendation_model.load_model():
+        print("추천 모델 로드 완료!")
+        model_info = recommendation_model.get_model_info()
+        print(f"모델 정보: {model_info}")
     else:
-        print("경고: 추천 모델 파일을 찾을 수 없습니다. models/ 디렉토리에 모델 파일을 추가해주세요.")
+        print("경고: 추천 모델 로드에 실패했습니다. 추천 기능이 제한적으로 작동할 수 있습니다.")
 
 @app.get("/")
 def read_root():
