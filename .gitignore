@@ -6,6 +6,8 @@
 *.sqlite
 *.sqlite3
 
+# 임베딩 데이터
+src/models/converted_data.pkl
 # Python
 __pycache__/
 *.py[cod]
